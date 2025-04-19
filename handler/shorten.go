@@ -11,6 +11,7 @@ import (
 type ShortenRequest struct {
 	OriginalURL string    `json:"original_url"`
 	ExpireAt    time.Time `json:"expire_at,omitempty"`
+	Title       string    `json:"title,omitempty"`
 }
 
 func Shorten(c *gin.Context) {
@@ -20,12 +21,24 @@ func Shorten(c *gin.Context) {
 		return
 	}
 
-	shortCode := model.GenerateCode() // 随机生成短码
+	var shortCode string
+	for {
+		shortCode = model.GenerateCode()
+		var exists int
+		err := storage.DB.QueryRow(`SELECT COUNT(1) FROM short_links WHERE short_code = ?`, shortCode).Scan(&exists)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+			return
+		}
+		if exists == 0 {
+			break
+		}
+	}
 
 	_, err := storage.DB.Exec(`
-        INSERT INTO short_links (short_code, original_url, expire_at)
-        VALUES (?, ?, ?)`,
-		shortCode, req.OriginalURL, req.ExpireAt,
+        INSERT INTO short_links (short_code, original_url, expire_at, title)
+        VALUES (?, ?, ?, ?)`,
+		shortCode, req.OriginalURL, req.ExpireAt, req.Title,
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
@@ -33,6 +46,7 @@ func Shorten(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"short_url": "http://localhost:8080/go/" + shortCode,
+		"short_url": "http://go.123191.xyz/" + shortCode,
+		"title":     req.Title,
 	})
 }

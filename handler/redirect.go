@@ -25,7 +25,7 @@ func Redirect(c *gin.Context) {
 		return
 	}
 
-	if expireAt.Valid && expireAt.Time.Before(time.Now()) {
+	if expireAt.Valid && !expireAt.Time.IsZero() && expireAt.Time.Before(time.Now()) {
 		c.String(http.StatusGone, "Link expired")
 		return
 	}
